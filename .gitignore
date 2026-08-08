@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+*.egg
+.Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.cover
+*.log
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Django / Flask (if used)
+*.sqlite3
+*.db
+instance/
+.DS_Store
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+
+# SQLite / local database (your example)
+chinook.db
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db

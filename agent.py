@@ -19,3 +19,9 @@ def _validate_read_only(query:str) -> str:
     if not READ_ONLY_SQL.match(cleaned):
         raise ValueError('Only read only SELECT queries are allowed.')
     return cleaned
+
+def _create_agent():
+    if not DB_PATH.exists():
+        raise FileNotFoundError(f"Database not found at {DB_PATH}")
+
+    db = SQLDatabse.from_uri(f"sqlite:///{DB_PATH.resolve()}")
