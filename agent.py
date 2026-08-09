@@ -33,7 +33,14 @@ def _build_model():
         extra_body={"thinking": {"type": "disabled"}},
     )
 
-def _build_tools(db)
+def _build_tools(db: SQLDatabase, model: ChatOpenAI) -> list:
+    """Build the LangChain SQL toolkit and replace the default query tool with the read only version."""
+    toolkit = SQLDatabaseToolkit(db=db, llm=model)
+    tools = toolkit.get_tools()
+    for i, tool in enumerate(tools):
+        if tool.name == "sql_db_query":
+            tools[i] = REadOnlyQuerySQLDatabaseTool(db=db)
+    return tools    
 
 def _create_agent():
     if not DB_PATH.exists():
