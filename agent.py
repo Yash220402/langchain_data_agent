@@ -39,8 +39,15 @@ def _build_tools(db: SQLDatabase, model: ChatOpenAI) -> list:
     tools = toolkit.get_tools()
     for i, tool in enumerate(tools):
         if tool.name == "sql_db_query":
-            tools[i] = REadOnlyQuerySQLDatabaseTool(db=db)
-    return tools    
+            tools[i] = ReadOnlyQuerySQLDatabaseTool(db=db)
+    return tools
+
+def ReadOnlyQuerySQLDatabaseTool(db: SQLDatabase):
+    """SQL query tool that rejects non-SELECT statements."""
+    
+    def _run(self, query:str, run_manager=None) -> str:
+        safe_query = _validate_read_only(query)
+        return self.db.run_no_throw(safe_query, include_columns=True)
 
 def _create_agent():
     if not DB_PATH.exists():
