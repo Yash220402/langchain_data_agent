@@ -20,8 +20,25 @@ def _validate_read_only(query:str) -> str:
         raise ValueError('Only read only SELECT queries are allowed.')
     return cleaned
 
+def _build_model():
+    """BUild and return the ChatOpenAI client"""
+    api_key = os.getenv("ORQ_API_KEY")
+    if not api_key:
+        raise ValueError("ORQ_API_KEY is not set. Copy .env.example to .env and add your key")
+    return ChatOpenAI(
+        model="kimi-k2.6",
+        openai_api_key=api_key,
+        openai_api_base="https://api.orq.ai/v3/router",
+        temperature=1,
+        extra_body={"thinking": {"type": "disabled"}},
+    )
+
+def _build_tools(db)
+
 def _create_agent():
     if not DB_PATH.exists():
         raise FileNotFoundError(f"Database not found at {DB_PATH}")
 
-    db = SQLDatabse.from_uri(f"sqlite:///{DB_PATH.resolve()}")
+    db = SQLDatabase.from_uri(f"sqlite:///{DB_PATH.resolve()}")
+    model = _build_model()
+    tools = _build_tools(db, model)
