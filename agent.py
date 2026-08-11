@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 from langchain.messages import AIMessage, HumanMessage
-
+from langchain_community.utilities import SQLDatabase
 
 DB_PATH = Path(__file__).parent / "chinook.db"
 
@@ -87,3 +87,7 @@ def _llm_context(state: MessageState) -> list[HumanMessage]:
     if user_question:
         parts.append(f"User question: {user_question}")
     return [HumanMessage(content="\n\n".join(parts) if parts else "")]
+
+
+def _create_agent():
+    return 
