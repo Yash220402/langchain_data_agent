@@ -3,6 +3,9 @@ import re
 from pathlib import Path
 from typing import Literal
 
+from langchain.messages import AIMessage, HumanMessage
+
+
 DB_PATH = Path(__file__).parent / "chinook.db"
 
 FORBIDDEN_SQL = re.compile(
@@ -44,7 +47,7 @@ def _build_tools(db: SQLDatabase, model: ChatOpenAI) -> list:
 
 def ReadOnlyQuerySQLDatabaseTool(db: SQLDatabase):
     """SQL query tool that rejects non-SELECT statements."""
-    
+
     def _run(self, query:str, run_manager=None) -> str:
         safe_query = _validate_read_only(query)
         return self.db.run_no_throw(safe_query, include_columns=True)
@@ -56,3 +59,31 @@ def _create_agent():
     db = SQLDatabase.from_uri(f"sqlite:///{DB_PATH.resolve()}")
     model = _build_model()
     tools = _build_tools(db, model)
+
+def _llm_context(state: MessageState) -> list[HumanMessage]:
+    """Text-only context for Kimi"""
+    user_question: str | None = None
+    blocks: list[str] = []
+
+    for msg in state["messages"]:
+        if isinstance(msg, HumanMessage):
+            user_question = msg.content if isinstance(msg.content, str) else str(msg.content)
+        elif isinstance(msg, AIMessage):
+            if msg.tool_calls:
+                summary = ", ".join(
+                    f"{tc.get('name')}({tc.get('args')})" for tc in msg.tool_calls
+                )
+                blocks.append(f"Assistant requested tools: {summary}")
+            elif msg.content and str(msg.content).strip():
+                blocks.append(str(msg.content).strip())
+        elif isinstance(msg, ToolMessage):
+            name = msg.name or "tool"
+            body = msg.content if isinstance(msg.content, str) else str(msg.content)
+            blocks.append(f"### {name}\n{body}")
+    
+    parts: list[str] = []
+    if blocks:
+        parts.append("Database context:\n" + "\n\n".join(blocks))
+    if user_question:
+        parts.append(f"User question: {user_question}")
+    return [HumanMessage(content="\n\n".join(parts) if parts else "")]
