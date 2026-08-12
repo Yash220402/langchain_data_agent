@@ -5,6 +5,7 @@ from typing import Literal
 
 from langchain.messages import AIMessage, HumanMessage
 from langchain_community.utilities import SQLDatabase
+from langgraph.prebuilt import ToolNode
 
 DB_PATH = Path(__file__).parent / "chinook.db"
 
@@ -90,4 +91,19 @@ def _llm_context(state: MessageState) -> list[HumanMessage]:
 
 
 def _create_agent():
-    return 
+    if not DB_PATH.exists():
+        raise FileNotFoundError(f"Database not found as {DB_PATH}")
+    
+    db = SQLDatabase.from_uri(f"sqlite:///{DB_PATH.resolve()}")
+    model = _build_model()
+    tools = _build_tools()
+
+    get_schema_tool = next(t for t in tools if t.name == "sql_db_schema")
+    get_schema_node = ToolNode([get_schema_tool], name="get_schema")
+
+    run_query_tool = next(t for t in tools if t.name == "sql_db_query")
+    run_query_node = ToolNode([run_query_tool], name="run_query")
+
+    list_table_tools = next(t for t in tools if t.name == "sql_db_list_tables")
+
+    # create query prompt
