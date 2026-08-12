@@ -141,3 +141,15 @@ def _create_agent():
     You will call the appropriate tool to execute the query after running this check.
     Only SELECT (read-only) queries are permitted.
     """.strip()
+
+    def list_tables(state: MessageState):
+        tool_call = {
+            "name": "sql_db_list_tables",
+            "args": {},
+            "id": "list_tables_call",
+            "type": "tool_call"
+        }
+
+        tool_message = list_table_tool.invoke(tool_call)
+        response = AIMessage(content=f"Available tables: {tool_message.content}")
+        return {"message": [response]}
