@@ -8,6 +8,7 @@ from langchain_community.utilities import SQLDatabase
 from langgraph.prebuilt import ToolNode
 
 DB_PATH = Path(__file__).parent / "chinook.db"
+TOP_K = 10
 
 FORBIDDEN_SQL = re.compile(
     r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|REPLACE|"
@@ -107,3 +108,36 @@ def _create_agent():
     list_table_tools = next(t for t in tools if t.name == "sql_db_list_tables")
 
     # create query prompt
+    generate_query_system_prompt = f"""
+    You are an agent designed to interact with a SQL database.
+    Given an input question, create a syntactically correct {db.dialect} query to run,
+    then look at the results of the query and return the answer. Unless the user
+    specifies a specific number of examples they wish to obtain, always limit your
+    query to at most {TOP_K} results.
+
+    You can order the results by a relevant column to return the most interesting
+    examples in the database. Never query for all the columns from a specific table,
+    only ask for the relevant columns given the question.
+
+    DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
+    When you have enough information to answer, respond in clear natural language.
+    """.strip()
+
+    check_query_system_prompt = f"""
+    You are a SQL expert with a strong attention to detail.
+    Double check the {db.dialect} query for common mistakes, including:
+    - Using NOT IN with NULL values
+    - Using UNION when UNION ALL should have been used
+    - Using BETWEEN for exclusive ranges
+    - Data type mismatch in predicates
+    - Properly quoting identifiers
+    - Using the correct number of arguments for functions
+    - Casting to the correct data type
+    - Using the proper columns for joins
+
+    If there are any of the above mistakes, rewrite the query. If there are no mistakes,
+    just reproduce the original query.
+
+    You will call the appropriate tool to execute the query after running this check.
+    Only SELECT (read-only) queries are permitted.
+    """.strip()
