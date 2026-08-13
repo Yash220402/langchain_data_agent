@@ -153,3 +153,24 @@ def _create_agent():
         tool_message = list_table_tool.invoke(tool_call)
         response = AIMessage(content=f"Available tables: {tool_message.content}")
         return {"message": [response]}
+
+    def require_tool_call(llm_with_tools, messages, tool_name: str, retry_hint: str):
+        response = llm_with_tools.invoke(messages)
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Call sql_db_schema with comma-separated table names relevant to the user question"
+                ),
+            },
+            *_llm_context(state),
+        ]
+        response = _require_tool_call(
+            llm_with_tools,
+            messages,
+            "sql_db_schema",
+            "Call sql_db_schema now with the relevant table names."
+        )
+        return {"messages": [response]}
+
+        
