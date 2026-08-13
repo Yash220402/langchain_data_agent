@@ -175,53 +175,53 @@ def _create_agent():
         )
         return {"messages": [response]}
 
-def generate_query(state: MessageState):
-    llm_with_tools = model.bind_tools([run_query_tool])
-    messages = [
-        {
-            "role": "system", 
-            "content": generate_query_system_prompt,
-        }
-        *_llm_context(state)
-    ]
-    response = llm_with_tools.invoke(messages)
-    return {"messages": [response]}
+    def generate_query(state: MessageState):
+        llm_with_tools = model.bind_tools([run_query_tool])
+        messages = [
+            {
+                "role": "system", 
+                "content": generate_query_system_prompt,
+            }
+            *_llm_context(state)
+        ]
+        response = llm_with_tools.invoke(messages)
+        return {"messages": [response]}
 
-def check_query(state: MessageState):
-    system_message = {"role": "system", "content": check_query_system_prompt}
-    tool_call = state["messages"][-1].tool_calls[0]
-    user_message = {"role": "user", "content": tool_call["args"]["query"]}
-    llm_with_tools = model.bind_tools([run_query_tool])
-    response = _require_tool_call(
-        llm_with_tools,
-        [system_message, user_message],
-        "sql_db_query",
-        "Call sql_db_query with the validated read-only SLECT query."
-    )
-    repsonse.id = state["messages"][-1].id 
-    return {"messages": [response]}
+    def check_query(state: MessageState):
+        system_message = {"role": "system", "content": check_query_system_prompt}
+        tool_call = state["messages"][-1].tool_calls[0]
+        user_message = {"role": "user", "content": tool_call["args"]["query"]}
+        llm_with_tools = model.bind_tools([run_query_tool])
+        response = _require_tool_call(
+            llm_with_tools,
+            [system_message, user_message],
+            "sql_db_query",
+            "Call sql_db_query with the validated read-only SLECT query."
+        )
+        repsonse.id = state["messages"][-1].id 
+        return {"messages": [response]}
 
-def should_continue(state: MessageState) -> Literal["check_query", END]:
-    last_message = state["messages"][-1]
-    if not last_message.tool_calls:
-        return END
-    return "check_query"
+    def should_continue(state: MessageState) -> Literal["check_query", END]:
+        last_message = state["messages"][-1]
+        if not last_message.tool_calls:
+            return END
+        return "check_query"
 
-# Build graph
-builder = StateGraph(MessageState)
-builder.add_node("list_tables", list_tables)
-builder.add_node("call_get_schema", call_get_schema)
-builder.add_node("get_schema", get_schema_node)
-builder.add_node("generate_query", generate_query)
-builder.add_node("check_query", check_query)
-builder.add_node("run_query", run_query_node)
+    # Build graph
+    builder = StateGraph(MessageState)
+    builder.add_node("list_tables", list_tables)
+    builder.add_node("call_get_schema", call_get_schema)
+    builder.add_node("get_schema", get_schema_node)
+    builder.add_node("generate_query", generate_query)
+    builder.add_node("check_query", check_query)
+    builder.add_node("run_query", run_query_node)
 
-builder.add_edge("START", "list_tables")
-builder.add_edge("list_tables", "call_get_schema")
-builder.add_edge("call_get_schema", "get_schema")
-builder.add_edge("get_schema", "generate_query")
-builder.add_conditional_edges("generate_query", should_continue)
-builder.add_edge("check_query", "run_query")
-builder.add_edge("run_query", "generate_query")
+    builder.add_edge("START", "list_tables")
+    builder.add_edge("list_tables", "call_get_schema")
+    builder.add_edge("call_get_schema", "get_schema")
+    builder.add_edge("get_schema", "generate_query")
+    builder.add_conditional_edges("generate_query", should_continue)
+    builder.add_edge("check_query", "run_query")
+    builder.add_edge("run_query", "generate_query")
 
-return builder.compile()
+    return builder.compile()
