@@ -271,3 +271,18 @@ def extract_answer(message: list[BaseMessage]) -> str:
                 return text.strip()
     return "Could not generate an answer. Please try rephrasing your question."
 
+def run_query(question: str, history: list[dict] | None = None) -> dict:
+    "Run the SQL agent and return answer metadata for the UI."
+    agent = get_agent(reload=True)
+    prior = _to_langchain_messages(history or [])
+    prior.append(HumanMessage(content=question))
+
+    result = agent.invoke({"message": prior})
+
+    last_sql, last_results = _extract_sql_metadata(result['messages'])
+    return {
+        "answer": extract_answer(result["messages"]),
+        "sql": last_sql,
+        "raw_results": last_results,
+        "messages": result["messages"],
+    }
