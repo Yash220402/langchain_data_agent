@@ -225,3 +225,13 @@ def _create_agent():
     builder.add_edge("run_query", "generate_query")
 
     return builder.compile()
+
+_agent = None
+
+def get_agent(*, realod: bool=False):
+    """Return the cached agent instance, building it on the first call or when the reload is True."""
+    global _agent
+    if _agent is None or reload:
+        _agent = _create_agent()
+        return _agent
+
