@@ -5,7 +5,9 @@ from typing import Literal
 
 from langchain.messages import AIMessage, HumanMessage
 from langchain_community.utilities import SQLDatabase
+
 from langgraph.prebuilt import ToolNode
+from langgraph.graph import END, START, MessagesState, StateGraph
 
 DB_PATH = Path(__file__).parent / "chinook.db"
 TOP_K = 10
@@ -198,4 +200,28 @@ def check_query(state: MessageState):
     )
     repsonse.id = state["messages"][-1].id 
     return {"messages": [response]}
-    
+
+def should_continue(state: MessageState) -> Literal["check_query", END]:
+    last_message = state["messages"][-1]
+    if not last_message.tool_calls:
+        return END
+    return "check_query"
+
+# Build graph
+builder = StateGraph(MessageState)
+builder.add_node("list_tables", list_tables)
+builder.add_node("call_get_schema", call_get_schema)
+builder.add_node("get_schema", get_schema_node)
+builder.add_node("generate_query", generate_query)
+builder.add_node("check_query", check_query)
+builder.add_node("run_query", run_query_node)
+
+builder.add_edge("START", "list_tables")
+builder.add_edge("list_tables", "call_get_schema")
+builder.add_edge("call_get_schema", "get_schema")
+builder.add_edge("get_schema", "generate_query")
+builder.add_conditional_edges("generate_query", should_continue)
+builder.add_edge("check_query", "run_query")
+builder.add_edge("run_query", "generate_query")
+
+return builder.compile()
