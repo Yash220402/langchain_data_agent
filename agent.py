@@ -173,4 +173,29 @@ def _create_agent():
         )
         return {"messages": [response]}
 
-        
+def generate_query(state: MessageState):
+    llm_with_tools = model.bind_tools([run_query_tool])
+    messages = [
+        {
+            "role": "system", 
+            "content": generate_query_system_prompt,
+        }
+        *_llm_context(state)
+    ]
+    response = llm_with_tools.invoke(messages)
+    return {"messages": [response]}
+
+def check_query(state: MessageState):
+    system_message = {"role": "system", "content": check_query_system_prompt}
+    tool_call = state["messages"][-1].tool_calls[0]
+    user_message = {"role": "user", "content": tool_call["args"]["query"]}
+    llm_with_tools = model.bind_tools([run_query_tool])
+    response = _require_tool_call(
+        llm_with_tools,
+        [system_message, user_message],
+        "sql_db_query",
+        "Call sql_db_query with the validated read-only SLECT query."
+    )
+    repsonse.id = state["messages"][-1].id 
+    return {"messages": [response]}
+    
