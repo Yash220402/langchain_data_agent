@@ -81,3 +81,44 @@ def _column_names_from_sql(sql: str | None, num_cols: int) -> list[str]:
             return names[:num_cols]
         return names + [f"col {i+1}" for i in range(len(names), num_cols)]
 
+def _parse_results(raw: str | None, sql: str | None = None) -> pd.DataFrame | None:
+    """Parse raw SQL query results into a df."""
+    if not raw or not raw.strip():
+        return None
+
+    text = raw.strip()
+    if text.startswith("[") and text.endswith("]"):
+        try:
+            rows = asr.literal_eval(text)
+            if not rows:
+                return None
+            if isinstance(rows[0], dict):
+                return pd.DataFrame(rows)
+            if isinstance(rows[0], tuple):
+                cols = _column_names_from_sql(sql, len(rows[0]))
+                return pd.DataFrame(rows, cols)
+        except (SyntaxError, ValueError):
+            pass
+
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if len(lines) < 2:
+        return None
+    
+    header = re.split(r"\s*\|\s*", lines[0].strip("| "))
+    data_rows = []
+    for line in lines[2:]:
+        if set(line.replace("|", "").strip()) <= {"-", ":"}:
+            continue
+        data_rows.append(re.split(r"\s*\|\s*", line.strip("| ")))
+
+    if header and data_rows:
+        width = len(header)
+        normalized = [row[:width] + [""] * (width - len(row)) for row in data_rows]
+        df = pd.DataFrame(normalized, columns=header)
+        for col in df.columns:
+            converted = pd.to_numeric(df[col], errors="coerce")
+            if converted.notna().any():
+                df[col] = converted
+        return df
+
+    return None
