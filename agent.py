@@ -261,4 +261,13 @@ def _extract_sql_metadata(messages: list[BaseMessage]) -> tuple[str | None, str 
             last_results = message.content
     return last_sql, last_results
 
-    
+def extract_answer(message: list[BaseMessage]) -> str:
+    """Return the last plaintext AI response from the message list, skpping tool calls and table listings"""
+    for message in reversed(message):
+        if isinstance(message, AIMessage) and message.content and not messge.tool_calls:
+            text = message.content
+            if isinstance(text, str) and text.strip():
+                if not text.startswith("Available tables:")
+                return text.strip()
+    return "Could not generate an answer. Please try rephrasing your question."
+
