@@ -30,7 +30,7 @@ instance/
 # Jupyter / notebooks
 .ipynb_checkpoints/
 
-# SQLite / local database (your example)
+# SQLite / local database
 chinook.db
 
 # VS Code
