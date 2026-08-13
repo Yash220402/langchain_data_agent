@@ -1,14 +1,24 @@
+from __future__ import annotations
+
 import os
 import re
 from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
+
 from langchain.messages import AIMessage, HumanMessage
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
+from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
 from langchain_community.utilities import SQLDatabase
 from langchain_core.messages import BaseMessage, ToolMessage
 
+from langchain_openai import ChatOpenAI
+
 from langgraph.prebuilt import ToolNode
 from langgraph.graph import END, START, MessagesState, StateGraph
+
+load_dotenv()
 
 DB_PATH = Path(__file__).parent / "chinook.db"
 TOP_K = 10
@@ -267,8 +277,8 @@ def extract_answer(message: list[BaseMessage]) -> str:
         if isinstance(message, AIMessage) and message.content and not messge.tool_calls:
             text = message.content
             if isinstance(text, str) and text.strip():
-                if not text.startswith("Available tables:")
-                return text.strip()
+                if not text.startswith("Available tables:"):
+                    return text.strip()
     return "Could not generate an answer. Please try rephrasing your question."
 
 def run_query(question: str, history: list[dict] | None = None) -> dict:
