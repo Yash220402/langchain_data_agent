@@ -5,6 +5,7 @@ from typing import Literal
 
 from langchain.messages import AIMessage, HumanMessage
 from langchain_community.utilities import SQLDatabase
+from langchain_core.messages import BaseMessage, ToolMessage
 
 from langgraph.prebuilt import ToolNode
 from langgraph.graph import END, START, MessagesState, StateGraph
@@ -235,3 +236,29 @@ def get_agent(*, realod: bool=False):
         _agent = _create_agent()
         return _agent
 
+def _to_langchain_messages(history: list[dict]) -> list[BaseMessage]:
+    """Convert a list of role/content dicts from the session history into LangChain messages objects."""
+    messages: list[BaseMessage] = []
+    for item in history:
+        role = item.get("role", "user")
+        content = item.get("content", "")
+        if role == "user":
+            messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            messages.append(AIMessage(content=content))
+    return messages
+
+def _extract_sql_metadata(messages: list[BaseMessage]) -> tuple[str | None, str | None]:
+    """Extract the last SQL query and its raw result string from the agent message history"""
+    last_sql: str | None = None
+    last_results: str | None = None
+    for messages in messages:
+        if isinstance(messages, AIMessage) and message.tool_calls:
+            for tool_call in message.tool_calls:
+                if tool_call.get("name") == "sql_db_query":
+                    last_sql = tool_call.get("args", {}).get("query")
+        if isinstance(message, ToolMessage) and message.name == "sql_db_query":
+            last_results = message.content
+    return last_sql, last_results
+
+    
