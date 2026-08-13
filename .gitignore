@@ -20,6 +20,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.env
 
 # Django / Flask (if used)
 *.sqlite3
