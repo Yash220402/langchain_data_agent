@@ -3,26 +3,30 @@ from __future__ import annotations
 import ast
 import re
 
-import pandas as pd 
-import plotly.express as px 
+import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from agent import run_query
 
 st.set_page_config(
-    page_title="LangChain SQL Agent",
+    page_title="LangChain Data Agent",
     page_icon=">",
     layout="wide",
 )
 
-
-st.title("LangChain SQL Agent")
+st.title("LangChain Data Agent")
+st.caption(
+    "Ask questions about the Chinook music store database in plain English. "
+    "Queries are translated to read-only SQL and answered with charts when relevant."
+)
 
 with st.sidebar:
     st.header("About")
     st.markdown(
         """
         **Database:** Chinook SQLite (artists, albums, tracks, sales)
+
         **Model:** kimi-k2.6 via [Orq.ai](https://orq.ai)
         """
     )
@@ -30,23 +34,23 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
+
 def _column_names_from_sql(sql: str | None, num_cols: int) -> list[str]:
     """Derive display column names from the SELECT list when results are bare tuples."""
     if not sql or num_cols < 1:
-        return [f"col_{i+1}" for i in range(num_cols)]
-    
+        return [f"col_{i + 1}" for i in range(num_cols)]
+
     match = re.search(r"\bSELECT\b(.+?)\bFROM\b", sql, re.IGNORECASE | re.DOTALL)
     if not match:
-        return [f"col_{i+1}" for i in range(num_cols)]
+        return [f"col_{i + 1}" for i in range(num_cols)]
 
     select_part = match.group(1).strip()
     if select_part == "*":
-        return [f"col_{i+1}" for i in range(num_cols)]
+        return [f"col_{i + 1}" for i in range(num_cols)]
 
     parts: list[str] = []
     depth = 0
     buf: list[str] = []
-
     for char in select_part + ",":
         if char == "(":
             depth += 1
@@ -58,52 +62,52 @@ def _column_names_from_sql(sql: str | None, num_cols: int) -> list[str]:
             part = "".join(buf).strip()
             if part:
                 parts.append(part)
-                buf = []
+            buf = []
         else:
             buf.append(char)
 
-        names: list[str] = []
-        for part in parts:
-            alias = re.search(
-                r"\bAS\s+(?:[`\"']?)([A-Za-z_][\w$]*)(?:[`\"']?)\s*$",
-                part,
-                re.IGNORECASE,
-            )
-            if alias:
-                names.append(alias.group(1))
-                continue
+    names: list[str] = []
+    for part in parts:
+        alias = re.search(
+            r"\bAS\s+(?:[`\"']?)([A-Za-z_][\w$]*)(?:[`\"']?)\s*$",
+            part,
+            re.IGNORECASE,
+        )
+        if alias:
+            names.append(alias.group(1))
+            continue
+        token = part.strip().rstrip(",").split()[-1]
+        token = token.strip("`\"'[]")
+        names.append(token.split(".")[-1] if token else f"col_{len(names) + 1}")
 
-            token = part.strip().rstrip(",").split()[-1]
-            token = token.strip("`\"'[]")
-            names.append(token.split(".")[-1] if token else f"col{len(names) + 1}")
+    if len(names) >= num_cols:
+        return names[:num_cols]
+    return names + [f"col_{i + 1}" for i in range(len(names), num_cols)]
 
-        if len(names) >= num_cols:
-            return names[:num_cols]
-        return names + [f"col {i+1}" for i in range(len(names), num_cols)]
 
 def _parse_results(raw: str | None, sql: str | None = None) -> pd.DataFrame | None:
-    """Parse raw SQL query results into a df."""
+    """Parse raw SQL query results (JSON list or pipe-delimited string) into a DataFrame."""
     if not raw or not raw.strip():
         return None
 
     text = raw.strip()
     if text.startswith("[") and text.endswith("]"):
         try:
-            rows = asr.literal_eval(text)
+            rows = ast.literal_eval(text)
             if not rows:
                 return None
             if isinstance(rows[0], dict):
                 return pd.DataFrame(rows)
             if isinstance(rows[0], tuple):
                 cols = _column_names_from_sql(sql, len(rows[0]))
-                return pd.DataFrame(rows, cols)
+                return pd.DataFrame(rows, columns=cols)
         except (SyntaxError, ValueError):
             pass
 
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     if len(lines) < 2:
         return None
-    
+
     header = re.split(r"\s*\|\s*", lines[0].strip("| "))
     data_rows = []
     for line in lines[2:]:
@@ -123,8 +127,9 @@ def _parse_results(raw: str | None, sql: str | None = None) -> pd.DataFrame | No
 
     return None
 
+
 def _build_chart(df: pd.DataFrame):
-    """Return a bar or pie chart for the df, or None if the data is not plottable"""
+    """Return a Plotly bar or pie chart for the DataFrame, or None if the data is not plottable."""
     if df.empty or len(df) < 2:
         return None
 
